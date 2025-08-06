@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<!-- V1.0 最終版本 -->
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作時間分配工具</title>
+  <style>
+    /* 整體頁面樣式 */
+    body {
+      font-family: 'Microsoft JhengHei', sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f0f2f5;
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    h1 { text-align: center; margin-bottom: 30px; color: #222; font-size: 2em; }
+    .month-selector, .controls {
+      display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 25px;
+    }
+    .month-selector input { max-width: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .input-section {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 30px;
+    }
+    .section {
+      background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #e1e3e8;
+    }
+    .section-title {
+      background: #4caf50; color: #fff; padding: 10px; border-radius: 4px;
+      text-align: center; font-size: 1.1em; margin-bottom: 15px;
+    }
+    .project-item, .holiday-item {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .project-item input, .holiday-item input {
+      flex: 1 1 120px; padding: 6px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    .btn, .btn-small, .btn-remove { transition: background 0.2s; cursor: pointer; }
+    .btn {
+      background: #4caf50; color: #fff; padding: 10px 16px; border: none; border-radius: 4px; font-size: 1em;
+    }
+    .btn:hover { background: #45a049; }
+    .btn-small {
+      background: #4caf50; color: #fff; padding: 6px 10px; border-radius: 4px; font-size: .9em;
+    }
+    .btn-small:hover { background: #45a049; }
+    .btn-remove { background: #e53935; color: #fff; padding: 6px 10px; font-size: .9em; }
+    .btn-remove:hover { background: #d32f2f; }
+    .table-scroll { overflow-x: auto; border: 1px solid #ddd; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: .9em; }
+    th { background: #4caf50; color: #fff; }
+    .weekend { background: #fcf8e3; }
+    .holiday { background: #fbe9e7; }
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: #fff; width: 90%; max-width: 600px; padding: 20px;
+      border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .modal-content textarea {
+      width: 100%; height: 200px; padding: 8px; border: 1px solid #ccc;
+      border-radius: 4px; font-family: monospace; font-size: .9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>工作時間分配工具</h1>
+    <div class="month-selector">
+      <button class="btn" id="btnHoliday">假期設定</button>
+      <input type="month" id="selMonth" />
+    </div>
+    <div class="input-section">
+      <div class="section">
+        <div class="section-title">專案時數分配</div>
+        <div id="projects"></div>
+        <button class="btn" id="addProjBtn">新增專案</button>
+      </div>
+      <div class="section">
+        <div class="section-title">特殊假期</div>
+        <div id="holidays"></div>
+        <button class="btn" id="addHolInputBtn">新增假期輸入</button>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="genBtn">生成工作時間分配</button>
+      <button class="btn" id="expBtn" style="display:none;">匯出Excel</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <div class="modal" id="modalHoliday">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>國定假日設定 (JSON)</h2>
+        <button class="btn-remove" id="closeModal">X</button>
+      </div>
+      <textarea id="holidayJson" placeholder="貼上或編輯假期設定 JSON"></textarea>
+      <div style="text-align:right; margin-top:10px;">
+        <button class="btn" id="loadJsonBtn">載入</button>
+        <button class="btn" id="saveJsonBtn">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    // 全局存儲排程數據
+    window.scheduleData = null;
+    let projCount = 0, holCount = 0;
+    let userHols = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 綁定按鈕事件
+      document.getElementById('addProjBtn').addEventListener('click', addProject);
+      document.getElementById('addHolInputBtn').addEventListener('click', addHolidayInput);
+      document.getElementById('btnHoliday').addEventListener('click', openHoliday);
+      document.getElementById('closeModal').addEventListener('click', closeHoliday);
+      document.getElementById('saveJsonBtn').addEventListener('click', saveHolidayJson);
+      document.getElementById('loadJsonBtn').addEventListener('click', loadHolidayJson);
+      document.getElementById('genBtn').addEventListener('click', generateSchedule);
+      document.getElementById('expBtn').addEventListener('click', exportToExcel);
+      // 初始化一組專案與假期輸入項
+      addProject();
+      addHolidayInput();
+      loadHolidayJson();
+    });
+
+    // 新增專案區塊
+    function addProject() {
+      projCount++;
+      const div = document.createElement('div');
+      div.className = 'project-item';
+      div.innerHTML = `
+        <input placeholder="專案代碼" id="pcode${projCount}">
+        <input type="number" placeholder="總時數" id="ptotal${projCount}">
+        <div id="pspec${projCount}"></div>
+        <button class="btn-small" onclick="addSpec(${projCount})">指定日期</button>
+        <button class="btn-remove" onclick="this.parentElement.remove()">刪除</button>
+      `;
+      document.getElementById('projects').appendChild(div);
+    }
+
+    // 在指定專案區塊內新增日期與時數輸入
+    function addSpec(id) {
+      const container = document.getElementById('pspec' + id);
+      const d = document.createElement('div');
+      d.className = 'specific-date';
+      d.innerHTML = `
+        <input type="date">
+        <input type="number" placeholder="時數">
+        <button class="btn-remove" onclick="this.parentElement.remove()">刪除</button>
+      `;
+      container.appendChild(d);
+    }
+
+    // 新增特殊假期輸入區塊
+    function addHolidayInput() {
+      holCount++;
+      const div = document.createElement('div');
+      div.className = 'holiday-item';
+      div.innerHTML = `
+        <input placeholder="假期代碼" id="hcode${holCount}">
+        <input type="date" id="hdate${holCount}">
+        <input type="number" placeholder="時數" id="hhrs${holCount}">
+        <button class="btn-remove" onclick="this.parentElement.remove()">刪除</button>
+      `;
+      document.getElementById('holidays').appendChild(div);
+    }
+
+    // 打開/關閉假期設定模態視窗
+    function openHoliday() { document.getElementById('modalHoliday').style.display = 'flex'; }
+    function closeHoliday() { document.getElementById('modalHoliday').style.display = 'none'; }
+
+    // 儲存 & 載入假期 JSON 至 localStorage
+    function saveHolidayJson() {
+      try {
+        userHols = JSON.parse(document.getElementById('holidayJson').value);
+        localStorage.setItem('userHolidays', JSON.stringify(userHols));
+        closeHoliday();
+      } catch (e) { alert('JSON 格式錯誤'); }
+    }
+    function loadHolidayJson() {
+      const s = localStorage.getItem('userHolidays');
+      if (s) {
+        userHols = JSON.parse(s);
+        document.getElementById('holidayJson').value = s;
+      }
+    }
+
+    // 生成排程核心函式
+    function generateSchedule() {
+      const [year, month] = document.getElementById('selMonth').value.split('-').map(Number);
+      const days = new Date(year, month, 0).getDate();
+      const sched = {}, warns = [];
+
+      // 1. 初始化每日對象，並標記國定假日
+      for (let d = 1; d <= days; d++) {
+        const mm = String(month).padStart(2,'0'), dd = String(d).padStart(2,'0');
+        const key = `${year}-${mm}-${dd}`;
+        const dt = new Date(year, month-1, d);
+        sched[key] = { dow: dt.getDay(), assign: {}, tot: 0 };
+        if (userHols[key]) {  // 如果為國定假日
+          sched[key].assign['TW97-TW PUBLIC HOLIDAY'] = 8;
+          sched[key].tot = 8;
+        }
+      }
+
+      // 2. 處理使用者輸入的特殊假期
+      document.querySelectorAll('.holiday-item').forEach(el => {
+        const code = el.querySelector('[placeholder="假期代碼"]').value;
+        const date = el.querySelector('[type="date"]').value;
+        const hrs = Number(el.querySelector('[type="number"]').value) || 0;
+        if (code && sched[date]) {
+          sched[date].assign[code] = (sched[date].assign[code] || 0) + hrs;
+          sched[date].tot += hrs;
+        }
+      });
+
+      // 3. 處理專案分配：
+      //    a. 優先指定日期
+      //    b. 平均分配剩餘時數到周內未指定日期
+      document.querySelectorAll('.project-item').forEach(el => {
+        const code = el.querySelector('[placeholder="專案代碼"]').value;
+        const total = Number(el.querySelector('[type="number"]').value) || 0;
+        let used = 0;
+        const specDates = [];
+
+        // a. 指定日期分配
+        el.querySelectorAll('.specific-date').forEach(dv => {
+          const date = dv.querySelector('[type="date"]').value;
+          const hrs = Number(dv.querySelector('[type="number"]').value) || 0;
+          if (date && sched[date]) {
+            sched[date].assign[code] = (sched[date].assign[code] || 0) + hrs;
+            sched[date].tot += hrs;
+            used += hrs;
+            specDates.push(date);
+            if (sched[date].dow === 0 || sched[date].dow === 6) {
+              warns.push(`${date} 為週末，但指定 ${hrs} 小時`);
+            }
+          }
+        });
+
+        // b. 周平均分配剩餘
+        let rem = total - used;
+        const weeks = {};
+        Object.keys(sched).forEach(dtKey => {
+          const day = sched[dtKey];
+          if (day.dow >= 1 && day.dow <= 5 && !specDates.includes(dtKey)) {
+            const monday = new Date(dtKey);
+            monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+            const wkKey = monday.toISOString().slice(0,10);
+            (weeks[wkKey] = weeks[wkKey] || []).push(dtKey);
+          }
+        });
+        const wkKeys = Object.keys(weeks);
+        const base = wkKeys.length ? Math.floor(rem / wkKeys.length) : 0;
+        let extra = rem - base * wkKeys.length;
+        wkKeys.forEach(wk => {
+          let alloc = base + (extra-- > 0 ? 1 : 0);
+          weeks[wk].forEach(dtKey => {
+            if (alloc <= 0) return;
+            const avail = 8 - sched[dtKey].tot;
+            const add = Math.min(avail, alloc);
+            if (add > 0) {
+              sched[dtKey].assign[code] = (sched[dtKey].assign[code] || 0) + add;
+              sched[dtKey].tot += add;
+              alloc -= add;
+            }
+          });
+        });
+      });
+
+      // 4. 補滿每日至 8 小時，並標示剩餘代碼
+      Object.keys(sched).forEach(dtKey => {
+        const day = sched[dtKey];
+        if (day.dow >= 1 && day.dow <= 5 && day.tot < 8) {
+          day.assign['LPE30037-MI-SC-OF-FICE'] = 8 - day.tot;
+          day.tot = 8;
+        }
+      });
+
+      // 儲存並渲染結果
+      window.scheduleData = sched;
+      renderResult(sched, warns, year, month, days);
+      document.getElementById('expBtn').style.display = 'inline-block';
+    }
+
+    // 渲染結果至頁面
+    function renderResult(sched, warns, year, month, days) {
+      let html = '';
+      if (warns.length) html += `<div style="color:red;">${warns.join('<br>')}</div>`;
+      html += '<div class="table-scroll"><table><thead><tr><th></th>';
+      for (let d = 1; d <= days; d++) html += `<th>${d}</th>`;
+      html += '</tr><tr><th></th>';
+      for (let d = 1; d <= days; d++) {
+        const dow = new Date(year, month-1, d).getDay();
+        let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
+        const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        if (userHols[key]) cls += ' holiday';
+        html += `<th class="${cls}">${['日','一','二','三','四','五','六'][dow]}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
+      codes.forEach(code => {
+        html += `<tr><td>${code}</td>`;
+        for (let d = 1; d <= days; d++) {
+          const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          html += `<td>${sched[key].assign[code] || ''}</td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      document.getElementById('result').innerHTML = html;
+    }
+
+    // 匯出Excel
+    function exportToExcel() {
+      if (!window.scheduleData) { alert('請先生成排程'); return; }
+      const sched = window.scheduleData;
+      const [year, month] = document.getElementById('selMonth').value.split('-');
+      const days = new Date(Number(year), Number(month), 0).getDate();
+      const aoa = [];
+      // 日期行
+      const header = ['']; for (let d = 1; d <= days; d++) header.push(`${year}/${month}/${d}`);
+      aoa.push(header);
+      // 星期行
+      const wk = ['']; for (let d = 1; d <= days; d++) { const dow = new Date(Number(year), Number(month) - 1, d).getDay(); wk.push(['日','一','二','三','四','五','六'][dow]); }
+      aoa.push(wk);
+      // 資料行
+      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
+      codes.forEach(code => { const row = [code]; for (let d = 1; d <= days; d++) { const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`; row.push(sched[key].assign[code] || ''); } aoa.push(row); });
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `排程_${year}-${month}.xlsx`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
