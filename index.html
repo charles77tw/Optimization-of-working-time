@@ -264,8 +264,13 @@
           if (date && sched[date]) {
             const add = hrs;
             if (add > 0) {
+              if (userHols[date]) {
+                const holCode = typeof userHols[date] === 'string' ? userHols[date] : 'TW97-TW PUBLIC HOLIDAY';
+                const holHrs = sched[date].assign[holCode] || 0;
+                sched[date].assign[holCode] = Math.max(0, holHrs - add);
+              }
               sched[date].assign[code] = (sched[date].assign[code] || 0) + add;
-              sched[date].tot += add;
+              sched[date].tot = Object.values(sched[date].assign).reduce((s,v)=>s+v,0);
               used += add;
             }
             specDates.push(date);
