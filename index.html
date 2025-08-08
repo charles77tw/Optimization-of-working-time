@@ -348,8 +348,9 @@
       html += '<div class="table-scroll"><table><thead><tr><th></th>';
       for (let d = 1; d <= days; d++) {
         const dow = new Date(year, month - 1, d).getDay();
-        let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
+
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
         if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
         html += `<th class="${cls}">${d}</th>`;
       }
