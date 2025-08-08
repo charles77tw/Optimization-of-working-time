@@ -241,9 +241,13 @@
           const date = dv.querySelector('[type="date"]').value;
           const hrs = Number(dv.querySelector('[type="number"]').value) || 0;
           if (date && sched[date]) {
-            sched[date].assign[code] = (sched[date].assign[code] || 0) + hrs;
-            sched[date].tot += hrs;
-            used += hrs;
+            const avail = 8 - sched[date].tot;
+            const add = Math.min(avail, hrs);
+            if (add > 0) {
+              sched[date].assign[code] = (sched[date].assign[code] || 0) + add;
+              sched[date].tot += add;
+              used += add;
+            }
             specDates.push(date);
             if (sched[date].dow === 0 || sched[date].dow === 6) {
               warns.push(`${date} 為週末，但指定 ${hrs} 小時`);
