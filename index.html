@@ -241,8 +241,7 @@
           const date = dv.querySelector('[type="date"]').value;
           const hrs = Number(dv.querySelector('[type="number"]').value) || 0;
           if (date && sched[date]) {
-            const avail = 8 - sched[date].tot;
-            const add = Math.min(avail, hrs);
+            const add = hrs;
             if (add > 0) {
               sched[date].assign[code] = (sched[date].assign[code] || 0) + add;
               sched[date].tot += add;
@@ -283,6 +282,12 @@
             }
           });
         });
+      });
+
+      Object.keys(sched).forEach(dtKey => {
+        if (sched[dtKey].tot > 8) {
+          warns.push(`${dtKey} 指定時數達 ${sched[dtKey].tot} 小時`);
+        }
       });
 
       // 4. 補滿每日至 8 小時，並標示剩餘代碼
