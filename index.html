@@ -346,18 +346,22 @@
       html += '<div class="table-scroll"><table><thead><tr><th></th>';
       for (let d = 1; d <= days; d++) {
         const dow = new Date(year, month - 1, d).getDay();
+
         if (dow === 0 || dow === 6) continue;
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (userHols[key]) continue;
         html += `<th>${d}</th>`;
+
       }
       html += '</tr><tr><th></th>';
       for (let d = 1; d <= days; d++) {
         const dow = new Date(year, month - 1, d).getDay();
+
         if (dow === 0 || dow === 6) continue;
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         if (userHols[key]) continue;
         html += `<th>${['日','一','二','三','四','五','六'][dow]}</th>`;
+
       }
       html += '</tr></thead><tbody>';
       const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))))
@@ -366,11 +370,12 @@
         html += `<tr><td>${code}</td>`;
         for (let d = 1; d <= days; d++) {
           const dow = new Date(year, month - 1, d).getDay();
-          if (dow === 0 || dow === 6) continue;
           const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           if (userHols[key]) continue;
           const val = sched[key].assign[code];
-          html += `<td>${val !== undefined ? val : ''}</td>`;
+          let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
+          if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
+          html += `<td class="${cls}">${val !== undefined ? val : ''}</td>`;
         }
         html += '</tr>';
       });
@@ -388,8 +393,6 @@
       // 日期行
       const header = [''];
       for (let d = 1; d <= days; d++) {
-        const dow = new Date(Number(year), Number(month) - 1, d).getDay();
-        if (dow === 0 || dow === 6) continue;
         header.push(`${year}/${month}/${d}`);
       }
       aoa.push(header);
@@ -397,7 +400,6 @@
       const wk = [''];
       for (let d = 1; d <= days; d++) {
         const dow = new Date(Number(year), Number(month) - 1, d).getDay();
-        if (dow === 0 || dow === 6) continue;
         wk.push(['日','一','二','三','四','五','六'][dow]);
       }
       aoa.push(wk);
