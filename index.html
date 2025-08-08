@@ -105,6 +105,7 @@
         <h2>國定假日設定 (JSON)</h2>
         <button class="btn-remove" id="closeModal">X</button>
       </div>
+      <p>假期資料請至政府資料開放平台/中華民國政府行政機關辦公日曆表/各年度檢視資料中下載JSON檔 <a href="https://data.gov.tw/dataset/14718" target="_blank">https://data.gov.tw/dataset/14718</a></p>
       <textarea id="holidayJson" placeholder="貼上或編輯假期設定 JSON"></textarea>
       <div style="text-align:right; margin-top:10px;">
         <button class="btn" id="loadJsonBtn">載入</button>
@@ -185,16 +186,34 @@
     // 儲存 & 載入假期 JSON 至 localStorage
     function saveHolidayJson() {
       try {
-        userHols = JSON.parse(document.getElementById('holidayJson').value);
-        localStorage.setItem('userHolidays', JSON.stringify(userHols));
+        const arr = JSON.parse(document.getElementById('holidayJson').value);
+        userHols = {};
+        arr.forEach(ev => {
+          if (ev['Start Date']) {
+            const [y,m,d] = ev['Start Date'].split('/');
+            const key = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            userHols[key] = ev['Subject'] || true;
+          }
+        });
+        localStorage.setItem('userHolidays', JSON.stringify(arr));
         closeHoliday();
       } catch (e) { alert('JSON 格式錯誤'); }
     }
     function loadHolidayJson() {
       const s = localStorage.getItem('userHolidays');
       if (s) {
-        userHols = JSON.parse(s);
         document.getElementById('holidayJson').value = s;
+        try {
+          const arr = JSON.parse(s);
+          userHols = {};
+          arr.forEach(ev => {
+            if (ev['Start Date']) {
+              const [y,m,d] = ev['Start Date'].split('/');
+              const key = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+              userHols[key] = ev['Subject'] || true;
+            }
+          });
+        } catch (e) { userHols = {}; }
       }
     }
 
@@ -211,7 +230,8 @@
         const dt = new Date(year, month-1, d);
         sched[key] = { dow: dt.getDay(), assign: {}, tot: 0 };
         if (userHols[key]) {  // 如果為國定假日
-          sched[key].assign['TW97-TW PUBLIC HOLIDAY'] = 8;
+          const code = typeof userHols[key] === 'string' ? userHols[key] : 'TW97-TW PUBLIC HOLIDAY';
+          sched[key].assign[code] = 8;
           sched[key].tot = 8;
         }
       }
@@ -249,8 +269,8 @@
               used += add;
             }
             specDates.push(date);
-            if (sched[date].dow === 0 || sched[date].dow === 6) {
-              warns.push(`${date} 為週末，但指定 ${hrs} 小時`);
+            if (userHols[date]) {
+              warns.push(`${date} 為假日，但指定 ${hrs} 小時`);
             }
           }
         });
@@ -262,8 +282,7 @@
         let rem = proj.total - proj.used;
         const weeks = {};
         Object.keys(sched).forEach(dtKey => {
-          const day = sched[dtKey];
-          if (day.dow >= 1 && day.dow <= 5 && !proj.specDates.includes(dtKey)) {
+          if (!userHols[dtKey] && !proj.specDates.includes(dtKey)) {
             const monday = new Date(dtKey);
             monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
             const wkKey = monday.toISOString().slice(0,10);
@@ -297,7 +316,7 @@
       // 4. 補滿每日至 8 小時，並標示剩餘代碼
       Object.keys(sched).forEach(dtKey => {
         const day = sched[dtKey];
-        if (day.dow >= 1 && day.dow <= 5 && day.tot < 8) {
+        if (!userHols[dtKey] && day.tot < 8) {
           day.assign['LPE30037-MI-SC-OF-FICE'] = 8 - day.tot;
           day.tot = 8;
         }
