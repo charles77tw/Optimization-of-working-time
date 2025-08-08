@@ -230,6 +230,7 @@
       // 3. 處理專案分配：
       //    a. 優先指定日期
       //    b. 平均分配剩餘時數到周內未指定日期
+      const projData = [];
       document.querySelectorAll('.project-item').forEach(el => {
         const code = el.querySelector('[placeholder="專案代碼"]').value;
         const total = Number(el.querySelector('[type="number"]').value) || 0;
@@ -254,13 +255,16 @@
             }
           }
         });
+        projData.push({ code, total, used, specDates });
+      });
 
-        // b. 周平均分配剩餘
-        let rem = total - used;
+      // b. 周平均分配剩餘
+      projData.forEach(proj => {
+        let rem = proj.total - proj.used;
         const weeks = {};
         Object.keys(sched).forEach(dtKey => {
           const day = sched[dtKey];
-          if (day.dow >= 1 && day.dow <= 5 && !specDates.includes(dtKey)) {
+          if (day.dow >= 1 && day.dow <= 5 && !proj.specDates.includes(dtKey)) {
             const monday = new Date(dtKey);
             monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
             const wkKey = monday.toISOString().slice(0,10);
@@ -277,7 +281,7 @@
             const avail = 8 - sched[dtKey].tot;
             const add = Math.min(avail, alloc);
             if (add > 0) {
-              sched[dtKey].assign[code] = (sched[dtKey].assign[code] || 0) + add;
+              sched[dtKey].assign[proj.code] = (sched[dtKey].assign[proj.code] || 0) + add;
               sched[dtKey].tot += add;
               alloc -= add;
             }
