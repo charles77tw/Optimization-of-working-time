@@ -327,6 +327,12 @@
         }
       });
 
+      Object.values(sched).forEach(day => {
+        Object.entries(day.assign).forEach(([code, hrs]) => {
+          if (hrs <= 0) delete day.assign[code];
+        });
+      });
+
       // 儲存並渲染結果
       window.scheduleData = sched;
       renderResult(sched, warns, year, month, days);
@@ -353,7 +359,8 @@
         html += `<th class="${cls}">${['日','一','二','三','四','五','六'][dow]}</th>`;
       }
       html += '</tr></thead><tbody>';
-      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
+      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))))
+        .filter(code => Object.values(sched).some(day => day.assign[code] > 0));
       codes.forEach(code => {
         html += `<tr><td>${code}</td>`;
         for (let d = 1; d <= days; d++) {
@@ -393,7 +400,8 @@
       }
       aoa.push(wk);
       // 資料行
-      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
+      const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))))
+        .filter(code => Object.values(sched).some(day => day.assign[code] > 0));
       codes.forEach(code => {
         const row = [code];
         for (let d = 1; d <= days; d++) {
