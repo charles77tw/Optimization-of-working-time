@@ -228,8 +228,9 @@
         const mm = String(month).padStart(2,'0'), dd = String(d).padStart(2,'0');
         const key = `${year}-${mm}-${dd}`;
         const dt = new Date(year, month-1, d);
-        sched[key] = { dow: dt.getDay(), assign: {}, tot: 0 };
-        if (userHols[key]) {  // 如果為國定假日
+        const dow = dt.getDay();
+        sched[key] = { dow, assign: {}, tot: 0 };
+        if (userHols[key] && dow !== 0 && dow !== 6) {  // 如果為國定假日且為平日
           const code = typeof userHols[key] === 'string' ? userHols[key] : 'TW97-TW PUBLIC HOLIDAY';
           sched[key].assign[code] = 8;
           sched[key].tot = 8;
@@ -349,7 +350,7 @@
 
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
-        if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
+        if (userHols[key] && dow !== 0 && dow !== 6) cls += (cls ? ' ' : '') + 'holiday';
         html += `<th class="${cls}">${d}</th>`;
       }
       html += '</tr><tr><th></th>';
@@ -357,7 +358,7 @@
         const dow = new Date(year, month - 1, d).getDay();
         let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
+        if (userHols[key] && dow !== 0 && dow !== 6) cls += (cls ? ' ' : '') + 'holiday';
         html += `<th class="${cls}">${['日','一','二','三','四','五','六'][dow]}</th>`;
       }
       html += '</tr></thead><tbody>';
@@ -370,7 +371,7 @@
           const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           const val = sched[key].assign[code];
           let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
-          if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
+          if (userHols[key] && dow !== 0 && dow !== 6) cls += (cls ? ' ' : '') + 'holiday';
           html += `<td class="${cls}">${val !== undefined ? val : ''}</td>`;
         }
         html += '</tr>';
