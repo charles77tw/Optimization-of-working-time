@@ -264,8 +264,13 @@
           if (date && sched[date]) {
             const add = hrs;
             if (add > 0) {
+              if (userHols[date]) {
+                const holCode = typeof userHols[date] === 'string' ? userHols[date] : 'TW97-TW PUBLIC HOLIDAY';
+                const holHrs = sched[date].assign[holCode] || 0;
+                sched[date].assign[holCode] = Math.max(0, holHrs - add);
+              }
               sched[date].assign[code] = (sched[date].assign[code] || 0) + add;
-              sched[date].tot += add;
+              sched[date].tot = Object.values(sched[date].assign).reduce((s,v)=>s+v,0);
               used += add;
             }
             specDates.push(date);
@@ -333,13 +338,18 @@
       let html = '';
       if (warns.length) html += `<div style="color:red;">${warns.join('<br>')}</div>`;
       html += '<div class="table-scroll"><table><thead><tr><th></th>';
-      for (let d = 1; d <= days; d++) html += `<th>${d}</th>`;
+      for (let d = 1; d <= days; d++) {
+        const dow = new Date(year, month - 1, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        html += `<th>${d}</th>`;
+      }
       html += '</tr><tr><th></th>';
       for (let d = 1; d <= days; d++) {
-        const dow = new Date(year, month-1, d).getDay();
-        let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
+        const dow = new Date(year, month - 1, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        let cls = '';
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        if (userHols[key]) cls += ' holiday';
+        if (userHols[key]) cls = 'holiday';
         html += `<th class="${cls}">${['日','一','二','三','四','五','六'][dow]}</th>`;
       }
       html += '</tr></thead><tbody>';
@@ -347,6 +357,8 @@
       codes.forEach(code => {
         html += `<tr><td>${code}</td>`;
         for (let d = 1; d <= days; d++) {
+          const dow = new Date(year, month - 1, d).getDay();
+          if (dow === 0 || dow === 6) continue;
           const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           const val = sched[key].assign[code];
           html += `<td>${val !== undefined ? val : ''}</td>`;
@@ -365,16 +377,28 @@
       const days = new Date(Number(year), Number(month), 0).getDate();
       const aoa = [];
       // 日期行
-      const header = ['']; for (let d = 1; d <= days; d++) header.push(`${year}/${month}/${d}`);
+      const header = [''];
+      for (let d = 1; d <= days; d++) {
+        const dow = new Date(Number(year), Number(month) - 1, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        header.push(`${year}/${month}/${d}`);
+      }
       aoa.push(header);
       // 星期行
-      const wk = ['']; for (let d = 1; d <= days; d++) { const dow = new Date(Number(year), Number(month) - 1, d).getDay(); wk.push(['日','一','二','三','四','五','六'][dow]); }
+      const wk = [''];
+      for (let d = 1; d <= days; d++) {
+        const dow = new Date(Number(year), Number(month) - 1, d).getDay();
+        if (dow === 0 || dow === 6) continue;
+        wk.push(['日','一','二','三','四','五','六'][dow]);
+      }
       aoa.push(wk);
       // 資料行
       const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
       codes.forEach(code => {
         const row = [code];
         for (let d = 1; d <= days; d++) {
+
+          
           const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           const val = sched[key].assign[code];
           row.push(val !== undefined ? val : '');
