@@ -56,8 +56,10 @@
     table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: .9em; }
     th { background: #4caf50; color: #fff; }
-    .weekend { background: #fcf8e3; }
-    .holiday { background: #fbe9e7; }
+    .weekend, .holiday {
+      background: #ccc;
+      color: #333;
+    }
     .modal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;
@@ -346,6 +348,7 @@
       html += '<div class="table-scroll"><table><thead><tr><th></th>';
       for (let d = 1; d <= days; d++) {
         const dow = new Date(year, month - 1, d).getDay();
+
         const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         let cls = (dow === 0 || dow === 6) ? 'weekend' : '';
         if (userHols[key]) cls += (cls ? ' ' : '') + 'holiday';
