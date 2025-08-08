@@ -348,7 +348,8 @@
         html += `<tr><td>${code}</td>`;
         for (let d = 1; d <= days; d++) {
           const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          html += `<td>${sched[key].assign[code] || ''}</td>`;
+          const val = sched[key].assign[code];
+          html += `<td>${val !== undefined ? val : ''}</td>`;
         }
         html += '</tr>';
       });
@@ -371,7 +372,15 @@
       aoa.push(wk);
       // 資料行
       const codes = Array.from(new Set([].concat(...Object.values(sched).map(day => Object.keys(day.assign)))));
-      codes.forEach(code => { const row = [code]; for (let d = 1; d <= days; d++) { const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`; row.push(sched[key].assign[code] || ''); } aoa.push(row); });
+      codes.forEach(code => {
+        const row = [code];
+        for (let d = 1; d <= days; d++) {
+          const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const val = sched[key].assign[code];
+          row.push(val !== undefined ? val : '');
+        }
+        aoa.push(row);
+      });
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, `${year}年${month}月`);
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
